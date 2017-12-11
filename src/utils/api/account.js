@@ -1,5 +1,7 @@
 import Lisk from 'oxy-nano-js';
 import { requestToActivePeer } from './peers';
+import { dposOffline } from 'dpos-offline';
+import { loadingStarted, loadingFinished } from '../loading';
 
 export const getAccount = (activePeer, address) =>
   new Promise((resolve, reject) => {
@@ -19,12 +21,58 @@ export const getAccount = (activePeer, address) =>
     });
   });
 
-export const setSecondPassphrase = (activePeer, secondSecret, publicKey, secret) =>
+export const setSecondPassphrase = (activePeer, secondSecret, publicKey, secret) => {
+  const wallet = new dposOffline.wallets.LiskLikeWallet(secret, 'X');
+  const secondPublicKey = secondSecret === null ? undefined : new dposOffline.wallets.LiskLikeWallet(secondSecret, 'X').publicKey;
+  if (typeof(secondPublicKey) !== 'undefined') {
+    return Promise.reject(new Error('Error no pubkey for secondary passphrase'))
+  }
+  const tx = new dposOffline.transactions.CreateSignatureTx({
+    signature: { publicKey },
+  });
+  const txOBJ = tx
+    .set('amount', 0)
+    .set('recipientId', recipientId)
+    .set('fee', 10000000)
+    .sign(wallet, secondPrivKey);
+
+  loadingStarted('signatures');
+  return activePeer.buildTransport()
+    .postTransaction(txOBJ)
+    .then((data) => {
+      loadingFinished('signatures');
+      return data;
+    })
+    .catch((err) => {
+      loadingFinished('signatures');
+      return Promise.reject(err);
+    });
+}
   requestToActivePeer(activePeer, 'signatures', { secondSecret, publicKey, secret });
 
-export const send = (activePeer, recipientId, amount, secret, secondSecret = null) =>
-  requestToActivePeer(activePeer, 'transactions',
-    { recipientId, amount, secret, secondSecret });
+export const send = (activePeer, recipientId, amount, secret, secondSecret = null) => {
+  const tx = new dposOffline.transactions.SendTx();
+  const wallet = new dposOffline.wallets.LiskLikeWallet(secret, 'X');
+  const secondPrivKey = secondSecret === null ? undefined: new dposOffline.wallets.LiskLikeWallet(secondSecret, 'X').privKey;
+  const txOBJ = tx
+    .set('amount', amount)
+    .set('recipientId', recipientId)
+    .set('fee', 10000000)
+    .sign(wallet, secondPrivKey);
+
+  loadingStarted('transactions');
+  return activePeer.buildTransport()
+    .postTransaction(txOBJ)
+    .then((data) => {
+      loadingFinished('transactions');
+      return data;
+    })
+    .catch((err) => {
+      loadingFinished('transactions');
+      return Promise.reject(err);
+    });
+};
+
 
 export const transactions = (activePeer, address, limit = 20, offset = 0, orderBy = 'timestamp:desc') =>
   requestToActivePeer(activePeer, 'transactions', {
@@ -44,8 +92,10 @@ export const unconfirmedTransactions = (activePeer, address, limit = 20, offset 
     orderBy,
   });
 
-export const extractPublicKey = passphrase =>
-  Lisk.crypto.getKeys(passphrase).publicKey;
+export const extractPublicKey = passphrase => new dposOffline
+  .wallets
+  .LiskLikeWallet(passphrase, 'X')
+  .publicKey;
 
 /**
  * @param {String} data - passphrase or public key

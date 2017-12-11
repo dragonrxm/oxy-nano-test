@@ -1,5 +1,5 @@
 import i18next from 'i18next';
-import Lisk from 'oxy-nano-js';
+import { oxy } from 'oxy-ts';
 import actionTypes from '../constants/actions';
 import { getNethash } from './../utils/api/nethash';
 import { errorToastDisplayed } from './toaster';
@@ -9,7 +9,7 @@ const peerSet = (data, config) => ({
   data: Object.assign({
     passphrase: data.passphrase,
     publicKey: data.publicKey,
-    activePeer: Lisk.api(config),
+    activePeer: oxy.api(config),
   }),
   type: actionTypes.activePeerSet,
 });
@@ -41,15 +41,18 @@ export const activePeerSet = data =>
       config.testnet = config.port === '9998';
     }
     if (config.custom) {
-      getNethash(Lisk.api(config)).then((response) => {
-        config.testnet = response.nethash === netHashes.testnet;
-        if (!config.testnet && response.nethash !== netHashes.mainnet) {
-          config.nethash = response.nethash;
-        }
-        dispatch(peerSet(data, config));
-      }).catch(() => {
-        dispatch(errorToastDisplayed({ label: i18next.t('Unable to connect to the node') }));
-      });
+      oxy.newWrapper(`${config.address}`).blocks
+        .getNethash()
+        .then((resp) => {
+          config.testnet = resp.nethash === netHashes.testnet;
+          if (!config.testnet && resp.nethash !== netHashes.mainnet) {
+            config.nethash = resp.nethash;
+          }
+          dispatch(peerSet(data, config));
+        })
+        .catch(() => {
+          dispatch(errorToastDisplayed({ label: i18next.t('Unable to connect to the node') }));
+        });
     } else {
       dispatch(peerSet(data, config));
     }
