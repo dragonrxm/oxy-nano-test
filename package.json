@@ -1,6 +1,6 @@
 {
   "name": "oxy-nano",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Oxy Nano",
   "homepage": "https://github.com/oxycoin/oxy-nano",
   "bugs": "https://github.com/oxycoin/oxy-nano/issues",
@@ -31,7 +31,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LiskHQ/lisk-nano"
+    "url": "https://github.com/dragonrxm/oxy-nano-test"
   },
   "dependencies": {
     "bignumber.js": "4.0.4",
